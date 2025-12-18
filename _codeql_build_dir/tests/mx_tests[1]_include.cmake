@@ -1,0 +1,5 @@
+if(EXISTS "/home/runner/work/mx/mx/_codeql_build_dir/tests/mx_tests[1]_tests.cmake")
+  include("/home/runner/work/mx/mx/_codeql_build_dir/tests/mx_tests[1]_tests.cmake")
+else()
+  add_test(mx_tests_NOT_BUILT mx_tests_NOT_BUILT)
+endif()
