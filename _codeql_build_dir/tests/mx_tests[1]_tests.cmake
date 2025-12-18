@@ -1,5 +1,0 @@
-add_test([=[MxTest.BasicTest]=]  /home/runner/work/mx/mx/_codeql_build_dir/tests/mx_tests [==[--gtest_filter=MxTest.BasicTest]==] --gtest_also_run_disabled_tests)
-set_tests_properties([=[MxTest.BasicTest]=]  PROPERTIES WORKING_DIRECTORY /home/runner/work/mx/mx/_codeql_build_dir/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
-add_test([=[MxTest.NamespaceExists]=]  /home/runner/work/mx/mx/_codeql_build_dir/tests/mx_tests [==[--gtest_filter=MxTest.NamespaceExists]==] --gtest_also_run_disabled_tests)
-set_tests_properties([=[MxTest.NamespaceExists]=]  PROPERTIES WORKING_DIRECTORY /home/runner/work/mx/mx/_codeql_build_dir/tests SKIP_REGULAR_EXPRESSION [==[\[  SKIPPED \]]==])
-set(  mx_tests_TESTS MxTest.BasicTest MxTest.NamespaceExists)
