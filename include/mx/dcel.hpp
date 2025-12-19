@@ -1,6 +1,8 @@
 #pragma once
 
+#include <map>
 #include <mx/mx.hpp>
+#include <unordered_map>
 
 namespace mx
 {

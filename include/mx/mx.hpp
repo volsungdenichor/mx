@@ -535,6 +535,12 @@ struct vector : public std::array<T, D>
     }
 };
 
+template <class T>
+vector(T, T) -> vector<T, 2>;
+
+template <class T>
+vector(T, T, T) -> vector<T, 3>;
+
 template <class T, std::size_t D>
 constexpr auto operator+(const vector<T, D>& item) -> vector<T, D>
 {

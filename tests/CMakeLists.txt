@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
+set(UNIT_TEST_BINARY mx_tests)
+
 include(FetchContent)
 FetchContent_Declare(
   googletest
@@ -12,15 +14,20 @@ FetchContent_MakeAvailable(googletest)
 
 include(GoogleTest)
 
-add_executable(mx_tests
+set(UNIT_TEST_FILES
   vector.test.cpp
+  dcel.test.cpp
 )
 
-target_link_libraries(mx_tests
+add_executable(${UNIT_TEST_BINARY}
+  ${UNIT_TEST_FILES}
+)
+
+target_link_libraries(${UNIT_TEST_BINARY}
   gtest
   gtest_main
   gmock
   gmock_main
 )
 
-gtest_discover_tests(mx_tests)
+gtest_discover_tests(${UNIT_TEST_BINARY})
