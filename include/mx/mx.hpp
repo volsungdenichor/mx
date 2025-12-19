@@ -1957,7 +1957,7 @@ struct contains_fn
     template <class T, class U, std::size_t D>
     constexpr auto operator()(const spherical_shape<T, D>& item, const vector<U, D>& other) const -> bool
     {
-        return norm(other - center(item)) <= sqr(item.radius);
+        return norm(other - center(item)) <= math::sqr(item.radius);
     }
 
     template <class T, class U>
@@ -1969,7 +1969,7 @@ struct contains_fn
 
         for (std::size_t i = 0; i < 3; ++i)
         {
-            result[i] = sign(orientation(other, segment<T, 2>{ item[(i + 0) % 3], item[(i + 1) % 3] }));
+            result[i] = math::sign(orientation(other, segment<T, 2>{ item[(i + 0) % 3], item[(i + 1) % 3] }));
         }
 
         return same_sign(result[0], result[1]) && same_sign(result[0], result[2]) && same_sign(result[1], result[2]);
@@ -2281,7 +2281,7 @@ struct circumcircle_fn
     constexpr auto operator()(const triangle<T, 2>& triangle) const -> spherical_shape<T, 2>
     {
         const auto center = circumcenter(triangle);
-        const auto radius = distance(center, triangle[0]);
+        const auto radius = static_cast<T>(distance(center, triangle[0]));
 
         return spherical_shape<T, 2>{ center, radius };
     }

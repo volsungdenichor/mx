@@ -768,11 +768,11 @@ struct triangulate_fn
 
         dcel<T> result;
 
-        std::map<size_t, typename dcel<T>::vertex_id> map;
+        std::map<std::size_t, dcel_vertex_id> map;
 
         for (const triangle_info& triangle : triangles)
         {
-            for (size_t v : triangle)
+            for (std::size_t v : triangle)
             {
                 if (map.find(v) == map.end())
                 {
