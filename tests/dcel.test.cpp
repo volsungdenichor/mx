@@ -2,34 +2,15 @@
 
 #include <mx/dcel.hpp>
 
-struct size
-{
-    struct reducer_t
-    {
-        template <class... Args>
-        constexpr auto operator()(std::size_t state, Args&&...) const -> std::size_t
-        {
-            return state + 1;
-        }
-    };
-    reducer_t reducer;
-    std::size_t state = 0;
-
-    template <class... Args>
-    void operator()(Args&&... args)
-    {
-        state = std::invoke(reducer, std::move(state), std::forward<Args>(args)...);
-    }
-};
-
 template <class T>
-struct push_back
+struct to_vector
 {
     struct reducer_t
     {
-        constexpr auto operator()(std::vector<T> state, T arg) const -> std::vector<T>
+        template <class Arg>
+        constexpr auto operator()(std::vector<T> state, Arg&& arg) const -> std::vector<T>
         {
-            state.push_back(std::move(arg));
+            state.push_back(std::forward<Arg>(arg));
             return state;
         }
     };
@@ -46,65 +27,53 @@ struct push_back
 
 struct vertex_proxy
 {
-    static constexpr auto location = [](auto&& matcher)
-    {
-        return testing::Property(
-            "location", &mx::dcel<float>::vertex_proxy::location, std::forward<decltype(matcher)>(matcher));
-    };
+    using type = mx::dcel<float>::vertex_proxy;
 
-    static constexpr auto id = [](auto&& matcher)
-    { return testing::Field("id", &mx::dcel<float>::vertex_proxy::id, std::forward<decltype(matcher)>(matcher)); };
+    static constexpr auto location = [](auto&& matcher)
+    { return testing::Property("location", &type::location, std::forward<decltype(matcher)>(matcher)); };
+
+    static constexpr auto id
+        = [](auto&& matcher) { return testing::Field("id", &type::id, std::forward<decltype(matcher)>(matcher)); };
 };
 
 struct face_proxy
 {
-    static constexpr auto id = [](auto&& matcher)
-    { return testing::Field("id", &mx::dcel<float>::face_proxy::id, std::forward<decltype(matcher)>(matcher)); };
+    using type = mx::dcel<float>::face_proxy;
+
+    static constexpr auto id
+        = [](auto&& matcher) { return testing::Field("id", &type::id, std::forward<decltype(matcher)>(matcher)); };
 
     static constexpr auto as_polygon = [](auto&& matcher)
-    {
-        return testing::Property(
-            "as_polygon", &mx::dcel<float>::face_proxy::as_polygon, std::forward<decltype(matcher)>(matcher));
-    };
+    { return testing::Property("as_polygon", &type::as_polygon, std::forward<decltype(matcher)>(matcher)); };
 };
 
 struct halfedge_proxy
 {
-    static constexpr auto id = [](auto&& matcher)
-    { return testing::Field("id", &mx::dcel<float>::halfedge_proxy::id, std::forward<decltype(matcher)>(matcher)); };
+    using type = mx::dcel<float>::halfedge_proxy;
+
+    static constexpr auto id
+        = [](auto&& matcher) { return testing::Field("id", &type::id, std::forward<decltype(matcher)>(matcher)); };
 
     static constexpr auto vertex_from = [](auto&& matcher)
-    {
-        return testing::Property(
-            "vertex_from", &mx::dcel<float>::halfedge_proxy::vertex_from, std::forward<decltype(matcher)>(matcher));
-    };
+    { return testing::Property("vertex_from", &type::vertex_from, std::forward<decltype(matcher)>(matcher)); };
 
     static constexpr auto vertex_to = [](auto&& matcher)
-    {
-        return testing::Property(
-            "vertex_to", &mx::dcel<float>::halfedge_proxy::vertex_to, std::forward<decltype(matcher)>(matcher));
-    };
+    { return testing::Property("vertex_to", &type::vertex_to, std::forward<decltype(matcher)>(matcher)); };
 
     static constexpr auto as_segment = [](auto&& matcher)
-    {
-        return testing::Property(
-            "as_segment", &mx::dcel<float>::halfedge_proxy::as_segment, std::forward<decltype(matcher)>(matcher));
-    };
+    { return testing::Property("as_segment", &type::as_segment, std::forward<decltype(matcher)>(matcher)); };
 
     static constexpr auto incident_face = [](auto&& matcher)
-    {
-        return testing::Property(
-            "incident_face", &mx::dcel<float>::halfedge_proxy::incident_face, std::forward<decltype(matcher)>(matcher));
-    };
+    { return testing::Property("incident_face", &type::incident_face, std::forward<decltype(matcher)>(matcher)); };
 };
 
 TEST(dcel, initial_state)
 {
     mx::dcel<float> dcel = {};
-    EXPECT_THAT(dcel.vertices(size{}).state, testing::Eq(0));
-    EXPECT_THAT(dcel.faces(size{}).state, testing::Eq(0));
-    EXPECT_THAT(dcel.halfedges(size{}).state, testing::Eq(0));
-    EXPECT_THROW(dcel.outer_halfedges(size{}).state, std::runtime_error);
+    EXPECT_THAT(dcel.vertices(to_vector<vertex_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.faces(to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges(to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
 
 TEST(dcel, single_vertex)
@@ -113,12 +82,12 @@ TEST(dcel, single_vertex)
     dcel.add_vertex(mx::vector(0.0f, 0.0f));
 
     EXPECT_THAT(
-        dcel.vertices(push_back<mx::dcel<float>::vertex_proxy>{}).state,
+        dcel.vertices(to_vector<vertex_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f))))));
-    EXPECT_THAT(dcel.faces(size{}).state, testing::Eq(0));
-    EXPECT_THAT(dcel.halfedges(size{}).state, testing::Eq(0u));
-    EXPECT_THROW(dcel.outer_halfedges(size{}).state, std::runtime_error);
+    EXPECT_THAT(dcel.faces(to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges(to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
 
 TEST(dcel, single_face)
@@ -132,20 +101,20 @@ TEST(dcel, single_face)
     }
 
     EXPECT_THAT(
-        dcel.vertices(push_back<mx::dcel<float>::vertex_proxy>{}).state,
+        dcel.vertices(to_vector<vertex_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(1)), vertex_proxy::location(testing::Eq(mx::vector(2.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(2)), vertex_proxy::location(testing::Eq(mx::vector(1.0f, 2.0f))))));
     EXPECT_THAT(
-        dcel.faces(push_back<mx::dcel<float>::face_proxy>{}).state,
+        dcel.faces(to_vector<face_proxy::type>{}).state,
         testing::ElementsAre(testing::AllOf(
             face_proxy::id(testing::Eq(0)),
             face_proxy::as_polygon(
                 testing::ElementsAre(mx::vector(0.0f, 0.0f), mx::vector(2.0f, 0.0f), mx::vector(1.0f, 2.0f))))));
 
     EXPECT_THAT(
-        dcel.halfedges(push_back<mx::dcel<float>::halfedge_proxy>{}).state,
+        dcel.halfedges(to_vector<halfedge_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(
                 halfedge_proxy::id(testing::Eq(0)),
@@ -190,5 +159,5 @@ TEST(dcel, single_face)
                 halfedge_proxy::vertex_from(vertex_proxy::id(testing::Eq(0))),
                 halfedge_proxy::vertex_to(vertex_proxy::id(testing::Eq(2))))));
 
-    EXPECT_THROW(dcel.outer_halfedges(size{}).state, std::runtime_error);
+    EXPECT_THROW(dcel.outer_halfedges(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
