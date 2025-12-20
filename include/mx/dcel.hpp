@@ -577,7 +577,7 @@ struct voronoi_fn
             });
 
         const auto is_outer_vertex = [&](const typename dcel<T>::vertex_proxy& vertex)
-        { return std::find(outer.begin(), outer.end(), vertex.id) == outer.end(); };
+        { return std::find(outer.begin(), outer.end(), vertex.id) != outer.end(); };
 
         std::unordered_map<dcel_face_id, dcel_vertex_id> centers;
 
