@@ -17,6 +17,7 @@ include(GoogleTest)
 set(UNIT_TEST_FILES
   vector.test.cpp
   dcel.test.cpp
+  dyn_matrix.test.cpp
 )
 
 add_executable(${UNIT_TEST_BINARY}
