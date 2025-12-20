@@ -175,7 +175,7 @@ static constexpr inline auto floor = detail::floor_fn{};
 static constexpr inline auto ceil = detail::ceil_fn{};
 static constexpr inline auto sin = detail::sin_fn{};
 static constexpr inline auto cos = detail::cos_fn{};
-static constexpr inline auto atans = detail::atan2_fn{};
+static constexpr inline auto atan2 = detail::atan2_fn{};
 static constexpr inline auto asin = detail::asin_fn{};
 static constexpr inline auto acos = detail::acos_fn{};
 static constexpr inline auto sign = detail::sign_fn{};
@@ -1735,16 +1735,16 @@ struct angle_fn
 {
     template <class T>
     constexpr auto operator()(const vector<T, 2>& lhs, const vector<T, 2>& rhs) const
-        -> decltype(atan2(cross(lhs, rhs), dot(lhs, rhs)))
+        -> decltype(math::atan2(cross(lhs, rhs), dot(lhs, rhs)))
     {
-        return atan2(cross(lhs, rhs), dot(lhs, rhs));
+        return math::atan2(cross(lhs, rhs), dot(lhs, rhs));
     }
 
     template <class T>
     constexpr auto operator()(const vector<T, 3>& lhs, const vector<T, 3>& rhs) const
-        -> decltype(acos(dot(lhs, rhs) / (length(lhs) * length(rhs))))
+        -> decltype(math::acos(dot(lhs, rhs) / (length(lhs) * length(rhs))))
     {
-        return acos(dot(lhs, rhs) / (length(lhs) * length(rhs)));
+        return math::acos(dot(lhs, rhs) / (length(lhs) * length(rhs)));
     }
 };
 
@@ -1764,9 +1764,9 @@ static constexpr inline auto norm = norm_fn{};
 struct length_fn
 {
     template <class T, std::size_t D>
-    constexpr auto operator()(const vector<T, D>& item) const -> decltype(sqrt(norm(item)))
+    constexpr auto operator()(const vector<T, D>& item) const -> decltype(math::sqrt(norm(item)))
     {
-        return sqrt(norm(item));
+        return math::sqrt(norm(item));
     }
 
     template <class T, std::size_t D>
@@ -2010,7 +2010,7 @@ struct interpolate_fn
     template <class R, class T, std::size_t D>
     constexpr auto operator()(R r, const vector<T, D>& lhs, const vector<T, D>& rhs) const -> vector<T, D>
     {
-        return (lhs * r) + (rhs * (R(1) - r));
+        return lhs + r * (rhs - lhs);
     }
 
     template <class R, class T, std::size_t D>
@@ -2040,7 +2040,7 @@ constexpr auto get_line_intersection_parameter(
     const auto d = p - a0;
 
     const auto det = cross(dir, d);
-    if (approx_equal(E(0), epsilon)(det))
+    if (!(approx_equal(E(0), epsilon)(det)))
     {
         return {};
     }
@@ -2057,12 +2057,12 @@ constexpr auto get_line_intersection_parameters(
     const auto dir_b = b1 - b0;
 
     const auto det = cross(dir_a, dir_b);
-    const auto v = b0 - a0;
 
     if (approx_equal(E(0), epsilon)(det))
     {
         return {};
     }
+    const auto v = b0 - a0;
 
     return { { cross(v, dir_b) / det, cross(v, dir_a) / det } };
 }
@@ -2269,7 +2269,7 @@ struct incircle_fn
         const auto center = incenter(triangle);
         const auto radius = distance(center, *projection(center, segment<T, 2>{ triangle[0], triangle[1] }, epsilon));
 
-        return spherical_shape<T, 2>{ center, radius };
+        return spherical_shape<T, 2>{ center, static_cast<T>(radius) };
     }
 };
 
@@ -2281,9 +2281,9 @@ struct circumcircle_fn
     constexpr auto operator()(const triangle<T, 2>& triangle) const -> spherical_shape<T, 2>
     {
         const auto center = circumcenter(triangle);
-        const auto radius = static_cast<T>(distance(center, triangle[0]));
+        const auto radius = distance(center, triangle[0]);
 
-        return spherical_shape<T, 2>{ center, radius };
+        return spherical_shape<T, 2>{ center, static_cast<T>(radius) };
     }
 };
 

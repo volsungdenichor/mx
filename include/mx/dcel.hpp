@@ -657,14 +657,14 @@ struct triangulate_fn
         using edge_info = std::array<std::size_t, 2>;
         using triangle_type = triangle<T, 2>;
 
-        const auto get_vertex = [&](std::size_t index) -> const vector_2d<T>& { return vertices.at(index); };
+        const auto get_vertex = [&](std::size_t index) -> const vector<T, 2>& { return vertices.at(index); };
 
         const auto get_triangle = [&](const triangle_info& t) -> triangle_type {
             return { get_vertex(t[0]), get_vertex(t[1]), get_vertex(t[2]) };
         };
 
         static const auto collinear = [](const triangle_type& t) -> bool
-        { return std::abs(orientation(t[0], t[1], t[2]) - 0.0) < std::numeric_limits<T>::epsilon(); };
+        { return std::abs(orientation(t[0], t[1], t[2]) - T{ 0 }) < std::numeric_limits<T>::epsilon(); };
 
         const auto bounds = make_aabb(vertices);
 
@@ -678,35 +678,15 @@ struct triangulate_fn
 
         const auto s = vertices.size();
 
-        vertices.push_back(c + vector_2d<T>{ -delta * max_dimension, -max_dimension });
-        vertices.push_back(c + vector_2d<T>{ 0, +delta * max_dimension });
-        vertices.push_back(c + vector_2d<T>{ +delta * max_dimension, -max_dimension });
+        vertices.push_back(c + vector<T, 2>{ -delta * max_dimension, -max_dimension });
+        vertices.push_back(c + vector<T, 2>{ 0, +delta * max_dimension });
+        vertices.push_back(c + vector<T, 2>{ +delta * max_dimension, -max_dimension });
 
         const triangle_info super_triangle{ s + 0, s + 1, s + 2 };
 
         triangles.push_back(super_triangle);
 
-        for (size_t i = 0; i < vertices.size(); ++i)
-        {
-            std::vector<triangle_info> invalid_triangles;
-            std::vector<edge_info> edges;
-
-            for (const triangle_info& triangle : triangles)
-            {
-                if (contains(circumcircle(get_triangle(triangle)), get_vertex(i)))
-                {
-                    invalid_triangles.push_back(triangle);
-
-                    edges.push_back({ triangle.at(0), triangle.at(1) });
-                    edges.push_back({ triangle.at(1), triangle.at(2) });
-                    edges.push_back({ triangle.at(2), triangle.at(0) });
-                }
-            }
-        }
-
-        triangles.push_back(super_triangle);
-
-        for (size_t i = 0; i < vertices.size(); ++i)
+        for (std::size_t i = 0; i < vertices.size(); ++i)
         {
             std::vector<triangle_info> invalid_triangles;
             std::vector<edge_info> edges;
@@ -752,19 +732,16 @@ struct triangulate_fn
             }
         }
 
-        triangles.erase(
-            std::remove_if(
-                triangles.begin(),
-                triangles.end(),
-                [&](const triangle_info& triangle)
-                {
-                    const triangle_type t = get_triangle(triangle);
-                    return std::any_of(
-                        super_triangle.begin(),
-                        super_triangle.end(),
-                        [&](std::size_t super_triangle_vertex) { return contains(t, get_vertex(super_triangle_vertex)); });
-                }),
-            triangles.end());
+        remove_erase_if(
+            triangles,
+            [&](const triangle_info& triangle)
+            {
+                const triangle_type t = get_triangle(triangle);
+                return std::any_of(
+                    super_triangle.begin(),
+                    super_triangle.end(),
+                    [&](std::size_t super_triangle_vertex) { return contains(t, get_vertex(super_triangle_vertex)); });
+            });
 
         dcel<T> result;
 
@@ -798,7 +775,14 @@ struct triangulate_fn
     template <class T>
     static box_shape<T, 2> make_aabb(const std::vector<vector<T, 2>>& vertices)
     {
-        box_shape<T, 2> result;
+        if (vertices.empty())
+        {
+            return box_shape<T, 2>{};
+        }
+        box_shape<T, 2> result{
+            interval<T>{ vertices[0][0], vertices[0][0] },
+            interval<T>{ vertices[0][1], vertices[0][1] },
+        };
         for (const vector<T, 2>& vertex : vertices)
         {
             result = box_shape<T, 2>{
@@ -812,23 +796,26 @@ struct triangulate_fn
     template <class T>
     void remove(std::vector<T>& lhs, const std::vector<T>& rhs) const
     {
-        lhs.erase(
-            std::remove_if(
-                lhs.begin(),
-                lhs.end(),
-                [&](const T& lhs_item)
-                {
-                    const auto lhs_vertices = get_vertices(lhs_item);
-                    return std::any_of(
-                        rhs.begin(), rhs.end(), [&](const T& rhs_item) { return lhs_vertices == get_vertices(rhs_item); });
-                }),
-            lhs.end());
+        remove_erase_if(
+            lhs,
+            [&](const T& lhs_item)
+            {
+                const auto lhs_vertices = get_vertices(lhs_item);
+                return std::any_of(
+                    rhs.begin(), rhs.end(), [&](const T& rhs_item) { return lhs_vertices == get_vertices(rhs_item); });
+            });
     }
 
     template <class T>
     std::set<std::size_t> get_vertices(const T& item) const
     {
         return std::set<std::size_t>{ item.begin(), item.end() };
+    }
+
+    template <class Container, class Pred>
+    static void remove_erase_if(Container& container, Pred&& pred)
+    {
+        container.erase(std::remove_if(container.begin(), container.end(), std::forward<Pred>(pred)), container.end());
     }
 };
 
