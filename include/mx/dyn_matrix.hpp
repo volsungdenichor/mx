@@ -19,12 +19,12 @@ using volume_t = std::ptrdiff_t;
 
 struct dim_base_t
 {
-    location_base_t size;
+    size_base_t size;
     location_base_t stride;
 
     dim_base_t() = default;
 
-    dim_base_t(location_base_t size, location_base_t stride) : size(size), stride(stride)
+    dim_base_t(size_base_t size, location_base_t stride) : size(size), stride(stride)
     {
     }
 
@@ -555,30 +555,32 @@ struct load_bitmap_fn
         dyn_matrix<byte, 3> result = prepare_array(header);
         auto ref = result.mut_ref();
 
-        std::array<std::array<byte, 3>, 256> palette;
+        using rgb_t = std::array<byte, 3>;
+        using palette_t = std::array<rgb_t, 256>;
+        palette_t palette = {};
 
         for (std::size_t i = 0; i < 256; ++i)
         {
-            const auto b = read<byte>(is);
-            const auto g = read<byte>(is);
-            const auto r = read<byte>(is);
+            const byte b = read<byte>(is);
+            const byte g = read<byte>(is);
+            const byte r = read<byte>(is);
             is.ignore(1);
 
-            palette[i] = { r, g, b };
+            palette[i] = rgb_t{ r, g, b };
         }
 
-        const auto h = ref.shape().at(0).size;
-        const auto w = ref.shape().at(1).size;
+        const size_base_t h = ref.shape().at(0).size;
+        const size_base_t w = ref.shape().at(1).size;
 
         for (location_base_t y = h - 1; y >= 0; --y)
         {
             for (location_base_t x = 0; x < w; ++x)
             {
-                const auto color = read<byte>(is);
-                const auto [r, g, b] = palette.at(color);
-                ref[location_t<3>{ y, x, 0 }] = r;
-                ref[location_t<3>{ y, x, 1 }] = r;
-                ref[location_t<3>{ y, x, 2 }] = r;
+                const rgb_t rgb = palette.at(read<byte>(is));
+                for (location_base_t z = 0; z < 3; ++z)
+                {
+                    ref[location_t<3>{ y, x, z }] = rgb[z];
+                }
             }
 
             is.ignore(padding);
@@ -594,19 +596,18 @@ struct load_bitmap_fn
         dyn_matrix<byte, 3> result = prepare_array(header);
         auto ref = result.mut_ref();
 
-        const auto h = ref.shape().at(0).size;
-        const auto w = ref.shape().at(1).size;
+        const size_base_t h = ref.shape().at(0).size;
+        const size_base_t w = ref.shape().at(1).size;
 
         for (location_base_t y = h - 1; y >= 0; --y)
         {
             for (location_base_t x = 0; x < w; ++x)
             {
-                const auto b = read<byte>(is);
-                const auto g = read<byte>(is);
-                const auto r = read<byte>(is);
-                ref[location_t<3>{ y, x, 0 }] = r;
-                ref[location_t<3>{ y, x, 1 }] = g;
-                ref[location_t<3>{ y, x, 2 }] = b;
+                for (location_base_t z = 2; z >= 0; --z)
+                {
+                    const byte value = read<byte>(is);
+                    ref[location_t<3>{ y, x, z }] = value;
+                }
             }
 
             is.ignore(padding);
@@ -622,8 +623,8 @@ struct save_bitmap_fn
         static const std::size_t bits_per_pixel = 8;
         const std::size_t padding = get_padding(image.shape().at(1).size, bits_per_pixel);
 
-        const auto h = image.shape().at(0).size;
-        const auto w = image.shape().at(1).size;
+        const size_base_t h = image.shape().at(0).size;
+        const size_base_t w = image.shape().at(1).size;
 
         save_header(os, w, h, padding, bits_per_pixel, 256 * 4);
 
@@ -638,9 +639,9 @@ struct save_bitmap_fn
 
         for (location_base_t y = h - 1; y >= 0; --y)
         {
-            for (int x = 0; x < w; ++x)
+            for (location_base_t x = 0; x < w; ++x)
             {
-                const auto value = image[location_t<2>{ y, x }];
+                const byte value = image[location_t<2>{ y, x }];
                 write<byte>(os, value);
             }
 
@@ -653,18 +654,19 @@ struct save_bitmap_fn
         static const std::size_t bits_per_pixel = 24;
         const std::size_t padding = get_padding(image.shape().at(1).size, bits_per_pixel);
 
-        const auto h = image.shape().at(0).size;
-        const auto w = image.shape().at(1).size;
+        const size_base_t h = image.shape().at(0).size;
+        const size_base_t w = image.shape().at(1).size;
 
         save_header(os, w, h, padding, bits_per_pixel, 0);
 
-        for (int y = h - 1; y >= 0; --y)
+        for (location_base_t y = h - 1; y >= 0; --y)
         {
-            for (int x = 0; x < w; ++x)
+            for (location_base_t x = 0; x < w; ++x)
             {
-                write<byte>(os, image[location_t<3>{ y, x, 2 }]);
-                write<byte>(os, image[location_t<3>{ y, x, 1 }]);
-                write<byte>(os, image[location_t<3>{ y, x, 0 }]);
+                for (location_base_t z = 2; z >= 0; --z)
+                {
+                    write<byte>(os, image[location_t<3>{ y, x, z }]);
+                }
             }
 
             write_n(os, padding);
