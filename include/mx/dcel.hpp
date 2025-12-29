@@ -560,7 +560,7 @@ private:
         std::vector<dcel_vertex_id> result;
 
         std::unordered_map<dcel_vertex_id, dcel_vertex_id> outer_halfedges;
-        halfedges(
+        halfedges()(
             [&](const halfedge_proxy& h)
             {
                 if (!h.incident_face().has_value())
@@ -596,8 +596,8 @@ struct voronoi_fn
             [&]() -> std::vector<dcel_vertex_id>
             {
                 std::vector<dcel_vertex_id> res;
-                input.outer_halfedges([&](const typename dcel<T>::halfedge_proxy& halfedge)
-                                      { res.push_back(halfedge.vertex_from().id); });
+                input.outer_halfedges()([&](const typename dcel<T>::halfedge_proxy& halfedge)
+                                        { res.push_back(halfedge.vertex_from().id); });
 
                 return res;
             });
@@ -610,7 +610,7 @@ struct voronoi_fn
         const auto is_outer_face = [&](const typename dcel<T>::face_proxy& face) -> bool
         {
             bool result = false;
-            face.outer_halfedges(
+            face.outer_halfedges()(
                 [&](const typename dcel<T>::halfedge_proxy& halfedge)
                 { result |= (is_outer_vertex(halfedge.vertex_from()) && is_outer_vertex(halfedge.vertex_to())); });
             return result;
@@ -621,7 +621,7 @@ struct voronoi_fn
         const auto add_face = [&](const typename dcel<T>::vertex_proxy& vertex)
         {
             std::vector<dcel_vertex_id> vertices;
-            vertex.incident_faces(
+            vertex.incident_faces()(
                 [&](const typename dcel<T>::face_proxy& face)
                 {
                     dcel_vertex_id v;
@@ -644,7 +644,7 @@ struct voronoi_fn
             }
         };
 
-        input.vertices(
+        input.vertices()(
             [&](const typename dcel<T>::vertex_proxy& vertex)
             {
                 if (!is_outer_vertex(vertex))
