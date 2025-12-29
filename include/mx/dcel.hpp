@@ -30,6 +30,9 @@ struct consumer_ref
     }
 };
 
+template <class... Args>
+using traverser = std::function<void(consumer_ref<Args...>)>;
+
 namespace detail
 {
 
@@ -97,55 +100,64 @@ public:
             return m_self->get_location(id);
         }
 
-        void out_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
+        traverser<const halfedge_proxy&> outer_halfedges() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const halfedge_proxy&> consumer)
             {
-                auto current = next;
-                next = next.twin_halfedge().next_halfedge();
-                consumer(current);
-                if (next.id == first_id)
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    break;
+                    auto current = next;
+                    next = next.twin_halfedge().next_halfedge();
+                    consumer(current);
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-            }
+            };
         }
 
-        void in_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
+        traverser<const halfedge_proxy&> in_halfedges() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const halfedge_proxy&> consumer)
             {
-                auto current = next;
-                next = next.twin_halfedge().next_halfedge();
-                consumer(current.twin_halfedge());
-                if (next.id == first_id)
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    break;
+                    auto current = next;
+                    next = next.twin_halfedge().next_halfedge();
+                    consumer(current.twin_halfedge());
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-            }
+            };
         }
 
-        void incident_faces(consumer_ref<const face_proxy&> consumer) const
+        traverser<const face_proxy&> incident_faces() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const face_proxy&> consumer)
             {
-                auto current = next;
-                next = next.twin_halfedge().next_halfedge();
-                if (auto f = next.incident_face())
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    consumer(*f);
+                    auto current = next;
+                    next = next.twin_halfedge().next_halfedge();
+                    if (auto f = next.incident_face())
+                    {
+                        consumer(*f);
+                    }
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-                if (next.id == first_id)
-                {
-                    break;
-                }
-            }
+            };
         }
 
         friend std::ostream& operator<<(std::ostream& os, const vertex_proxy& item)
@@ -164,61 +176,70 @@ public:
         const dcel* m_self;
         dcel_face_id id;
 
-        void outer_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
+        traverser<const halfedge_proxy&> outer_halfedges() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const halfedge_proxy&> consumer)
             {
-                auto current = next;
-                next = next.next_halfedge();
-                consumer(current);
-                if (next.id == first_id)
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    break;
+                    auto current = next;
+                    next = next.next_halfedge();
+                    consumer(current);
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-            }
+            };
         }
 
-        void outer_vertices(consumer_ref<const vertex_proxy&> consumer) const
+        traverser<const vertex_proxy&> outer_vertices() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const vertex_proxy&> consumer)
             {
-                auto current = next;
-                next = next.next_halfedge();
-                consumer(current.vertex_from());
-                if (next.id == first_id)
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    break;
+                    auto current = next;
+                    next = next.next_halfedge();
+                    consumer(current.vertex_from());
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-            }
+            };
         }
 
-        void adjacent_faces(consumer_ref<const face_proxy&> consumer) const
+        traverser<const face_proxy&> adjacent_faces() const
         {
-            auto next = halfedge_proxy{ m_self, info().halfedge };
-            const auto first_id = next.id;
-            while (true)
+            return [&](consumer_ref<const face_proxy&> consumer)
             {
-                auto current = next;
-                next = next.next.next_halfedge();
-                if (auto f = next->twin_halfedge().incident_face())
+                auto next = halfedge_proxy{ m_self, info().halfedge };
+                const auto first_id = next.id;
+                while (true)
                 {
-                    consumer(*f);
+                    auto current = next;
+                    next = next.next.next_halfedge();
+                    if (auto f = next->twin_halfedge().incident_face())
+                    {
+                        consumer(*f);
+                    }
+                    if (next.id == first_id)
+                    {
+                        break;
+                    }
                 }
-                if (next.id == first_id)
-                {
-                    break;
-                }
-            }
+            };
         }
 
         polygon_type as_polygon() const
         {
             polygon_type out;
-            outer_vertices([&](const vertex_proxy& v) { out.push_back(v.location()); });
+            outer_vertices()([&](const vertex_proxy& v) { out.push_back(v.location()); });
             return out;
         }
 
@@ -324,48 +345,60 @@ public:
         m_boundary_halfedge = build_face(hull(), nullptr);
     }
 
-    void vertices(consumer_ref<const vertex_proxy&> consumer) const
+    traverser<const vertex_proxy&> vertices() const
     {
-        for (const vertex_info& v : m_vertices)
+        return [&](consumer_ref<const vertex_proxy&> consumer)
         {
-            consumer(vertex_proxy{ this, v.id });
-        }
-    }
-
-    void faces(consumer_ref<const face_proxy&> consumer) const
-    {
-        for (const face_info& f : m_faces)
-        {
-            consumer(face_proxy{ this, f.id });
-        }
-    }
-
-    void halfedges(consumer_ref<const halfedge_proxy&> consumer) const
-    {
-        for (const halfedge_info& h : m_halfedges)
-        {
-            consumer(halfedge_proxy{ this, h.id });
-        }
-    }
-
-    void outer_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
-    {
-        if (m_boundary_halfedge == dcel_halfedge_id{ -1 })
-        {
-            throw std::runtime_error{ "boundary not defined " };
-        }
-        halfedge_proxy next = halfedge_proxy{ this, m_boundary_halfedge };
-        const auto first_id = next.id;
-        while (true)
-        {
-            auto current = next;
-            consumer(current);
-            next = next.next_halfedge();
-            if (next.id == first_id)
+            for (const vertex_info& v : m_vertices)
             {
-                break;
+                consumer(vertex_proxy{ this, v.id });
             }
-        }
+        };
+    }
+
+    traverser<const face_proxy&> faces() const
+    {
+        return [&](consumer_ref<const face_proxy&> consumer)
+        {
+            for (const face_info& f : m_faces)
+            {
+                consumer(face_proxy{ this, f.id });
+            }
+        };
+    }
+
+    traverser<const halfedge_proxy&> halfedges() const
+    {
+        return [&](consumer_ref<const halfedge_proxy&> consumer)
+        {
+            for (const halfedge_info& h : m_halfedges)
+            {
+                consumer(halfedge_proxy{ this, h.id });
+            }
+        };
+    }
+
+    traverser<const halfedge_proxy&> outer_halfedges() const
+    {
+        return [&](consumer_ref<const halfedge_proxy&> consumer)
+        {
+            if (m_boundary_halfedge == dcel_halfedge_id{ -1 })
+            {
+                throw std::runtime_error{ "boundary not defined " };
+            }
+            halfedge_proxy next = halfedge_proxy{ this, m_boundary_halfedge };
+            const auto first_id = next.id;
+            while (true)
+            {
+                auto current = next;
+                consumer(current);
+                next = next.next_halfedge();
+                if (next.id == first_id)
+                {
+                    break;
+                }
+            }
+        };
     }
 
 private:
