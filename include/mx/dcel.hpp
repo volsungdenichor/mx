@@ -7,6 +7,29 @@
 namespace mx
 {
 
+template <class... Args>
+struct consumer_ref
+{
+    using func_type = void (*)(void*, Args...);
+
+    void* m_obj;
+    func_type m_func;
+
+    template <class Func>
+    constexpr consumer_ref(Func&& func)
+        : m_obj{ &func }
+        , m_func{ [](void* obj, Args... args)
+                  { std::invoke(*static_cast<std::remove_reference_t<Func>*>(obj), std::forward<Args>(args)...); } }
+    {
+    }
+
+    template <class... CallArgs>
+    constexpr void operator()(CallArgs&&... args) const
+    {
+        m_func(m_obj, std::forward<CallArgs>(args)...);
+    }
+};
+
 namespace detail
 {
 
@@ -74,48 +97,40 @@ public:
             return m_self->get_location(id);
         }
 
-        template <class Acc>
-        Acc out_halfedges(Acc acc) const
+        void out_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const halfedge_proxy&>, "(const halfedge_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
             {
                 auto current = next;
                 next = next.twin_halfedge().next_halfedge();
-                acc(current);
+                consumer(current);
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
-        template <class Acc>
-        Acc in_halfedges(Acc acc) const
+        void in_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const halfedge_proxy&>, "(const halfedge_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
             {
                 auto current = next;
                 next = next.twin_halfedge().next_halfedge();
-                acc(current.twin_halfedge());
+                consumer(current.twin_halfedge());
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
-        template <class Acc>
-        Acc incident_faces(Acc acc) const
+        void incident_faces(consumer_ref<const face_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const face_proxy&>, "(const face_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
@@ -124,14 +139,13 @@ public:
                 next = next.twin_halfedge().next_halfedge();
                 if (auto f = next.incident_face())
                 {
-                    acc(*f);
+                    consumer(*f);
                 }
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
         friend std::ostream& operator<<(std::ostream& os, const vertex_proxy& item)
@@ -150,48 +164,40 @@ public:
         const dcel* m_self;
         dcel_face_id id;
 
-        template <class Acc>
-        Acc outer_halfedges(Acc acc) const
+        void outer_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const halfedge_proxy&>, "(const halfedge_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
             {
                 auto current = next;
                 next = next.next_halfedge();
-                acc(current);
+                consumer(current);
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
-        template <class Acc>
-        Acc outer_vertices(Acc acc) const
+        void outer_vertices(consumer_ref<const vertex_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const vertex_proxy&>, "(const vertex_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
             {
                 auto current = next;
                 next = next.next_halfedge();
-                acc(current.vertex_from());
+                consumer(current.vertex_from());
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
-        template <class Acc>
-        Acc adjacent_faces(Acc acc) const
+        void adjacent_faces(consumer_ref<const face_proxy&> consumer) const
         {
-            static_assert(std::is_invocable_v<Acc, const face_proxy&>, "(const face_proxy&)");
             auto next = halfedge_proxy{ m_self, info().halfedge };
             const auto first_id = next.id;
             while (true)
@@ -200,14 +206,13 @@ public:
                 next = next.next.next_halfedge();
                 if (auto f = next->twin_halfedge().incident_face())
                 {
-                    acc(*f);
+                    consumer(*f);
                 }
                 if (next.id == first_id)
                 {
                     break;
                 }
             }
-            return acc;
         }
 
         polygon_type as_polygon() const
@@ -319,43 +324,32 @@ public:
         m_boundary_halfedge = build_face(hull(), nullptr);
     }
 
-    template <class Acc>
-    Acc vertices(Acc acc) const
+    void vertices(consumer_ref<const vertex_proxy&> consumer) const
     {
-        static_assert(std::is_invocable_v<Acc, const vertex_proxy&>, "(const vertex_proxy&)");
         for (const vertex_info& v : m_vertices)
         {
-            acc(vertex_proxy{ this, v.id });
+            consumer(vertex_proxy{ this, v.id });
         }
-        return acc;
     }
 
-    template <class Acc>
-    Acc faces(Acc acc) const
+    void faces(consumer_ref<const face_proxy&> consumer) const
     {
-        static_assert(std::is_invocable_v<Acc, const face_proxy&>, "(const face_proxy&)");
         for (const face_info& f : m_faces)
         {
-            acc(face_proxy{ this, f.id });
+            consumer(face_proxy{ this, f.id });
         }
-        return acc;
     }
 
-    template <class Acc>
-    Acc halfedges(Acc acc) const
+    void halfedges(consumer_ref<const halfedge_proxy&> consumer) const
     {
-        static_assert(std::is_invocable_v<Acc, const halfedge_proxy&>, "(const halfedge_proxy&)");
         for (const halfedge_info& h : m_halfedges)
         {
-            acc(halfedge_proxy{ this, h.id });
+            consumer(halfedge_proxy{ this, h.id });
         }
-        return acc;
     }
 
-    template <class Acc>
-    Acc outer_halfedges(Acc acc) const
+    void outer_halfedges(consumer_ref<const halfedge_proxy&> consumer) const
     {
-        static_assert(std::is_invocable_v<Acc, const halfedge_proxy&>, "(const halfedge_proxy&)");
         if (m_boundary_halfedge == dcel_halfedge_id{ -1 })
         {
             throw std::runtime_error{ "boundary not defined " };
@@ -365,14 +359,13 @@ public:
         while (true)
         {
             auto current = next;
-            acc(current);
+            consumer(current);
             next = next.next_halfedge();
             if (next.id == first_id)
             {
                 break;
             }
         }
-        return acc;
     }
 
 private:
