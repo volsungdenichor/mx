@@ -7,31 +7,48 @@
 namespace mx
 {
 
-template <class... Args>
-struct consumer_ref
+template <class Signature>
+struct function_ref;
+
+template <class Ret, class... Args>
+struct function_ref<Ret(Args...)>
 {
-    using func_type = void (*)(void*, Args...);
+    using return_type = Ret;
+    using func_type = return_type (*)(void*, Args...);
 
     void* m_obj;
     func_type m_func;
 
     template <class Func>
-    constexpr consumer_ref(Func&& func)
-        : m_obj{ &func }
-        , m_func{ [](void* obj, Args... args)
-                  { std::invoke(*static_cast<std::remove_reference_t<Func>*>(obj), std::forward<Args>(args)...); } }
+    constexpr function_ref(Func&& func)
+        : m_obj{ const_cast<void*>(reinterpret_cast<const void*>(std::addressof(func))) }
+        , m_func{ [](void* obj, Args... args) -> return_type
+                  { return std::invoke(*static_cast<std::add_pointer_t<Func>>(obj), std::forward<Args>(args)...); } }
     {
     }
 
     template <class... CallArgs>
-    constexpr void operator()(CallArgs&&... args) const
+    constexpr return_type operator()(CallArgs&&... args) const
     {
-        m_func(m_obj, std::forward<CallArgs>(args)...);
+        return m_func(m_obj, std::forward<CallArgs>(args)...);
     }
 };
 
 template <class... Args>
-using traverser = std::function<void(consumer_ref<Args...>)>;
+struct traverser : public std::function<void(function_ref<void(Args...)>)>
+{
+    using consumer_type = function_ref<void(Args...)>;
+    using base_t = std::function<void(function_ref<void(Args...)>)>;
+
+    using base_t::base_t;
+
+    template <class Func>
+    constexpr Func for_each(Func func) const
+    {
+        (*this)(consumer_type{ func });
+        return func;
+    }
+};
 
 namespace detail
 {
@@ -102,7 +119,7 @@ public:
 
         traverser<const halfedge_proxy&> outer_halfedges() const
         {
-            return [&](consumer_ref<const halfedge_proxy&> consumer)
+            return [&](function_ref<void(const halfedge_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -110,7 +127,7 @@ public:
                 {
                     auto current = next;
                     next = next.twin_halfedge().next_halfedge();
-                    consumer(current);
+                    func(current);
                     if (next.id == first_id)
                     {
                         break;
@@ -121,7 +138,7 @@ public:
 
         traverser<const halfedge_proxy&> in_halfedges() const
         {
-            return [&](consumer_ref<const halfedge_proxy&> consumer)
+            return [&](function_ref<void(const halfedge_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -129,7 +146,7 @@ public:
                 {
                     auto current = next;
                     next = next.twin_halfedge().next_halfedge();
-                    consumer(current.twin_halfedge());
+                    func(current.twin_halfedge());
                     if (next.id == first_id)
                     {
                         break;
@@ -140,7 +157,7 @@ public:
 
         traverser<const face_proxy&> incident_faces() const
         {
-            return [&](consumer_ref<const face_proxy&> consumer)
+            return [&](function_ref<void(const face_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -150,7 +167,7 @@ public:
                     next = next.twin_halfedge().next_halfedge();
                     if (auto f = next.incident_face())
                     {
-                        consumer(*f);
+                        func(*f);
                     }
                     if (next.id == first_id)
                     {
@@ -178,7 +195,7 @@ public:
 
         traverser<const halfedge_proxy&> outer_halfedges() const
         {
-            return [&](consumer_ref<const halfedge_proxy&> consumer)
+            return [&](function_ref<void(const halfedge_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -186,7 +203,7 @@ public:
                 {
                     auto current = next;
                     next = next.next_halfedge();
-                    consumer(current);
+                    func(current);
                     if (next.id == first_id)
                     {
                         break;
@@ -197,7 +214,7 @@ public:
 
         traverser<const vertex_proxy&> outer_vertices() const
         {
-            return [&](consumer_ref<const vertex_proxy&> consumer)
+            return [&](function_ref<void(const vertex_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -205,7 +222,7 @@ public:
                 {
                     auto current = next;
                     next = next.next_halfedge();
-                    consumer(current.vertex_from());
+                    func(current.vertex_from());
                     if (next.id == first_id)
                     {
                         break;
@@ -216,7 +233,7 @@ public:
 
         traverser<const face_proxy&> adjacent_faces() const
         {
-            return [&](consumer_ref<const face_proxy&> consumer)
+            return [&](function_ref<void(const face_proxy&)> func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -226,7 +243,7 @@ public:
                     next = next.next.next_halfedge();
                     if (auto f = next->twin_halfedge().incident_face())
                     {
-                        consumer(*f);
+                        func(*f);
                     }
                     if (next.id == first_id)
                     {
@@ -239,7 +256,7 @@ public:
         polygon_type as_polygon() const
         {
             polygon_type out;
-            outer_vertices()([&](const vertex_proxy& v) { out.push_back(v.location()); });
+            outer_vertices().for_each([&](const vertex_proxy& v) { out.push_back(v.location()); });
             return out;
         }
 
@@ -347,40 +364,40 @@ public:
 
     traverser<const vertex_proxy&> vertices() const
     {
-        return [&](consumer_ref<const vertex_proxy&> consumer)
+        return [&](function_ref<void(const vertex_proxy&)> func)
         {
             for (const vertex_info& v : m_vertices)
             {
-                consumer(vertex_proxy{ this, v.id });
+                func(vertex_proxy{ this, v.id });
             }
         };
     }
 
     traverser<const face_proxy&> faces() const
     {
-        return [&](consumer_ref<const face_proxy&> consumer)
+        return [&](function_ref<void(const face_proxy&)> func)
         {
             for (const face_info& f : m_faces)
             {
-                consumer(face_proxy{ this, f.id });
+                func(face_proxy{ this, f.id });
             }
         };
     }
 
     traverser<const halfedge_proxy&> halfedges() const
     {
-        return [&](consumer_ref<const halfedge_proxy&> consumer)
+        return [&](function_ref<void(const halfedge_proxy&)> func)
         {
             for (const halfedge_info& h : m_halfedges)
             {
-                consumer(halfedge_proxy{ this, h.id });
+                func(halfedge_proxy{ this, h.id });
             }
         };
     }
 
     traverser<const halfedge_proxy&> outer_halfedges() const
     {
-        return [&](consumer_ref<const halfedge_proxy&> consumer)
+        return [&](function_ref<void(const halfedge_proxy&)> func)
         {
             if (m_boundary_halfedge == dcel_halfedge_id{ -1 })
             {
@@ -391,7 +408,7 @@ public:
             while (true)
             {
                 auto current = next;
-                consumer(current);
+                func(current);
                 next = next.next_halfedge();
                 if (next.id == first_id)
                 {

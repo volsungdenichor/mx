@@ -67,20 +67,13 @@ struct halfedge_proxy
     { return testing::Property("incident_face", &type::incident_face, std::forward<decltype(matcher)>(matcher)); };
 };
 
-template <class Reducer, class Func>
-Reducer consume(Func func, Reducer reducer)
-{
-    std::invoke(func, reducer);
-    return reducer;
-}
-
 TEST(dcel, initial_state)
 {
     mx::dcel<float> dcel = {};
-    EXPECT_THAT(consume(dcel.vertices(), to_vector<vertex_proxy::type>{}).state, testing::SizeIs(0));
-    EXPECT_THAT(consume(dcel.faces(), to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
-    EXPECT_THAT(consume(dcel.halfedges(), to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
-    EXPECT_THROW(consume(dcel.outer_halfedges(), to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
+    EXPECT_THAT(dcel.vertices().for_each(to_vector<vertex_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.faces().for_each(to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges().for_each(to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges().for_each(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
 
 TEST(dcel, single_vertex)
@@ -89,12 +82,12 @@ TEST(dcel, single_vertex)
     dcel.add_vertex(mx::vector(0.0f, 0.0f));
 
     EXPECT_THAT(
-        consume(dcel.vertices(), to_vector<vertex_proxy::type>{}).state,
+        dcel.vertices().for_each(to_vector<vertex_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f))))));
-    EXPECT_THAT(consume(dcel.faces(), to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
-    EXPECT_THAT(consume(dcel.halfedges(), to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
-    EXPECT_THROW(consume(dcel.outer_halfedges(), to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
+    EXPECT_THAT(dcel.faces().for_each(to_vector<face_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges().for_each(to_vector<halfedge_proxy::type>{}).state, testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges().for_each(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
 
 TEST(dcel, single_face)
@@ -108,20 +101,20 @@ TEST(dcel, single_face)
     }
 
     EXPECT_THAT(
-        consume(dcel.vertices(), to_vector<vertex_proxy::type>{}).state,
+        dcel.vertices().for_each(to_vector<vertex_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(1)), vertex_proxy::location(testing::Eq(mx::vector(2.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(2)), vertex_proxy::location(testing::Eq(mx::vector(1.0f, 2.0f))))));
     EXPECT_THAT(
-        consume(dcel.faces(), to_vector<face_proxy::type>{}).state,
+        dcel.faces().for_each(to_vector<face_proxy::type>{}).state,
         testing::ElementsAre(testing::AllOf(
             face_proxy::id(testing::Eq(0)),
             face_proxy::as_polygon(
                 testing::ElementsAre(mx::vector(0.0f, 0.0f), mx::vector(2.0f, 0.0f), mx::vector(1.0f, 2.0f))))));
 
     EXPECT_THAT(
-        consume(dcel.halfedges(), to_vector<halfedge_proxy::type>{}).state,
+        dcel.halfedges().for_each(to_vector<halfedge_proxy::type>{}).state,
         testing::ElementsAre(
             testing::AllOf(
                 halfedge_proxy::id(testing::Eq(0)),
@@ -166,5 +159,5 @@ TEST(dcel, single_face)
                 halfedge_proxy::vertex_from(vertex_proxy::id(testing::Eq(0))),
                 halfedge_proxy::vertex_to(vertex_proxy::id(testing::Eq(2))))));
 
-    EXPECT_THROW(consume(dcel.outer_halfedges(), to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
+    EXPECT_THROW(dcel.outer_halfedges().for_each(to_vector<halfedge_proxy::type>{}).state, std::runtime_error);
 }
