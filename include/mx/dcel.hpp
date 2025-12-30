@@ -7,49 +7,6 @@
 namespace mx
 {
 
-template <class Signature>
-struct function_ref;
-
-template <class Ret, class... Args>
-struct function_ref<Ret(Args...)>
-{
-    using return_type = Ret;
-    using func_type = return_type (*)(void*, Args...);
-
-    void* m_obj;
-    func_type m_func;
-
-    template <class Func>
-    constexpr function_ref(Func&& func)
-        : m_obj{ const_cast<void*>(reinterpret_cast<const void*>(std::addressof(func))) }
-        , m_func{ [](void* obj, Args... args) -> return_type
-                  { return std::invoke(*static_cast<std::add_pointer_t<Func>>(obj), std::forward<Args>(args)...); } }
-    {
-    }
-
-    template <class... CallArgs>
-    constexpr return_type operator()(CallArgs&&... args) const
-    {
-        return m_func(m_obj, std::forward<CallArgs>(args)...);
-    }
-};
-
-template <class... Args>
-struct traverser : public std::function<void(function_ref<void(Args...)>)>
-{
-    using consumer_type = function_ref<void(Args...)>;
-    using base_t = std::function<void(function_ref<void(Args...)>)>;
-
-    using base_t::base_t;
-
-    template <class Func>
-    constexpr Func for_each(Func func) const
-    {
-        (*this)(consumer_type{ func });
-        return func;
-    }
-};
-
 namespace detail
 {
 
@@ -117,7 +74,7 @@ public:
             return m_self->get_location(id);
         }
 
-        traverser<const halfedge_proxy&> outer_halfedges() const
+        generator<const halfedge_proxy&> outer_halfedges() const
         {
             return [&](function_ref<void(const halfedge_proxy&)> func)
             {
@@ -136,7 +93,7 @@ public:
             };
         }
 
-        traverser<const halfedge_proxy&> in_halfedges() const
+        generator<const halfedge_proxy&> in_halfedges() const
         {
             return [&](function_ref<void(const halfedge_proxy&)> func)
             {
@@ -155,7 +112,7 @@ public:
             };
         }
 
-        traverser<const face_proxy&> incident_faces() const
+        generator<const face_proxy&> incident_faces() const
         {
             return [&](function_ref<void(const face_proxy&)> func)
             {
@@ -193,7 +150,7 @@ public:
         const dcel* m_self;
         dcel_face_id id;
 
-        traverser<const halfedge_proxy&> outer_halfedges() const
+        generator<const halfedge_proxy&> outer_halfedges() const
         {
             return [&](function_ref<void(const halfedge_proxy&)> func)
             {
@@ -212,7 +169,7 @@ public:
             };
         }
 
-        traverser<const vertex_proxy&> outer_vertices() const
+        generator<const vertex_proxy&> outer_vertices() const
         {
             return [&](function_ref<void(const vertex_proxy&)> func)
             {
@@ -231,7 +188,7 @@ public:
             };
         }
 
-        traverser<const face_proxy&> adjacent_faces() const
+        generator<const face_proxy&> adjacent_faces() const
         {
             return [&](function_ref<void(const face_proxy&)> func)
             {
@@ -362,7 +319,7 @@ public:
         m_boundary_halfedge = build_face(hull(), nullptr);
     }
 
-    traverser<const vertex_proxy&> vertices() const
+    generator<const vertex_proxy&> vertices() const
     {
         return [&](function_ref<void(const vertex_proxy&)> func)
         {
@@ -373,7 +330,7 @@ public:
         };
     }
 
-    traverser<const face_proxy&> faces() const
+    generator<const face_proxy&> faces() const
     {
         return [&](function_ref<void(const face_proxy&)> func)
         {
@@ -384,7 +341,7 @@ public:
         };
     }
 
-    traverser<const halfedge_proxy&> halfedges() const
+    generator<const halfedge_proxy&> halfedges() const
     {
         return [&](function_ref<void(const halfedge_proxy&)> func)
         {
@@ -395,7 +352,7 @@ public:
         };
     }
 
-    traverser<const halfedge_proxy&> outer_halfedges() const
+    generator<const halfedge_proxy&> outer_halfedges() const
     {
         return [&](function_ref<void(const halfedge_proxy&)> func)
         {
