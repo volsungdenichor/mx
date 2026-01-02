@@ -60,10 +60,6 @@ struct slice_base_t
     {
     }
 
-    slice_base_t(location_base_t index) : slice_base_t(index, index != -1 ? value_type{ index + 1 } : value_type{})
-    {
-    }
-
     friend bool operator==(const slice_base_t& lhs, const slice_base_t& rhs)
     {
         return std::tie(lhs.start, lhs.stop, lhs.step) == std::tie(rhs.start, rhs.stop, rhs.step);

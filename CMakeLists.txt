@@ -10,3 +10,7 @@ include_directories(include)
 enable_testing()
 
 add_subdirectory(tests)
+
+if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
+    add_subdirectory(src)
+endif()
