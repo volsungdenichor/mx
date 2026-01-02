@@ -283,6 +283,22 @@ public:
         return detail::bounds(m_shape);
     }
 
+    template <std::size_t D_ = D, std::enable_if_t<(D_ > 1), int> = 0>
+    dyn_matrix_ref<T, D - 1> remove_dim(std::size_t d) const
+    {
+        const dim_t<D - 1> new_shape = std::invoke(
+            [&]() -> dim_t<D - 1>
+            {
+                dim_t<D - 1> result;
+                for (std::size_t i = 0; i + 1 < D; ++i)
+                {
+                    result[i] = m_shape[i + (i >= d ? 1 : 0)];
+                }
+                return result;
+            });
+        return dyn_matrix_ref<T, D - 1>{ m_ptr, new_shape };
+    }
+
     pointer m_ptr;
     shape_type m_shape;
 };
