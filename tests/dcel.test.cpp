@@ -1,35 +1,13 @@
 #include <gmock/gmock.h>
 
 #include <mx/dcel.hpp>
+#include <trx/trx.hpp>
 
-template <class T>
-struct to_vector
+template <class... Args, class State, class Reducer>
+constexpr auto operator|=(mx::generator_t<Args...> generator, trx::reducer_proxy_t<State, Reducer> proxy) -> State
 {
-    struct reducer_t
-    {
-        template <class Arg>
-        constexpr bool operator()(std::vector<T>& state, Arg&& arg) const
-        {
-            state.push_back(std::forward<Arg>(arg));
-            return true;
-        }
-    };
-
-    reducer_t reducer;
-    mutable std::vector<T> state;
-
-    template <class... Args>
-    bool operator()(Args&&... args)
-    {
-        return std::invoke(reducer, state, std::forward<Args>(args)...);
-    }
-};
-
-template <class T, class U>
-constexpr auto operator|(mx::generator_t<T> gen, to_vector<U> to_vec) -> std::vector<U>
-{
-    gen(to_vec);
-    return to_vec.state;
+    generator(typename mx::generator_t<Args...>::yield_fn{ proxy });
+    return proxy.state;
 }
 
 struct vertex_proxy
@@ -77,10 +55,10 @@ struct halfedge_proxy
 TEST(dcel, initial_state)
 {
     mx::dcel<float> dcel = {};
-    EXPECT_THAT(dcel.vertices() | to_vector<vertex_proxy::type>{}, testing::SizeIs(0));
-    EXPECT_THAT(dcel.faces() | to_vector<face_proxy::type>{}, testing::SizeIs(0));
-    EXPECT_THAT(dcel.halfedges() | to_vector<halfedge_proxy::type>{}, testing::SizeIs(0));
-    EXPECT_THROW(dcel.outer_halfedges() | to_vector<halfedge_proxy::type>{}, std::runtime_error);
+    EXPECT_THAT(dcel.vertices() |= trx::into(std::vector<vertex_proxy::type>{}), testing::SizeIs(0));
+    EXPECT_THAT(dcel.faces() |= trx::into(std::vector<face_proxy::type>{}), testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}), testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}), std::runtime_error);
 }
 
 TEST(dcel, single_vertex)
@@ -89,12 +67,12 @@ TEST(dcel, single_vertex)
     dcel.add_vertex(mx::vector(0.0f, 0.0f));
 
     EXPECT_THAT(
-        dcel.vertices() | to_vector<vertex_proxy::type>{},
+        dcel.vertices() |= trx::into(std::vector<vertex_proxy::type>{}),
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f))))));
-    EXPECT_THAT(dcel.faces() | to_vector<face_proxy::type>{}, testing::SizeIs(0));
-    EXPECT_THAT(dcel.halfedges() | to_vector<halfedge_proxy::type>{}, testing::SizeIs(0));
-    EXPECT_THROW(dcel.outer_halfedges() | to_vector<halfedge_proxy::type>{}, std::runtime_error);
+    EXPECT_THAT(dcel.faces() |= trx::into(std::vector<face_proxy::type>{}), testing::SizeIs(0));
+    EXPECT_THAT(dcel.halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}), testing::SizeIs(0));
+    EXPECT_THROW(dcel.outer_halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}), std::runtime_error);
 }
 
 TEST(dcel, single_face)
@@ -108,20 +86,20 @@ TEST(dcel, single_face)
     }
 
     EXPECT_THAT(
-        dcel.vertices() | to_vector<vertex_proxy::type>{},
+        dcel.vertices() |= trx::into(std::vector<vertex_proxy::type>{}),
         testing::ElementsAre(
             testing::AllOf(vertex_proxy::id(testing::Eq(0)), vertex_proxy::location(testing::Eq(mx::vector(0.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(1)), vertex_proxy::location(testing::Eq(mx::vector(2.0f, 0.0f)))),
             testing::AllOf(vertex_proxy::id(testing::Eq(2)), vertex_proxy::location(testing::Eq(mx::vector(1.0f, 2.0f))))));
     EXPECT_THAT(
-        dcel.faces() | to_vector<face_proxy::type>{},
+        dcel.faces() |= trx::into(std::vector<face_proxy::type>{}),
         testing::ElementsAre(testing::AllOf(
             face_proxy::id(testing::Eq(0)),
             face_proxy::as_polygon(
                 testing::ElementsAre(mx::vector(0.0f, 0.0f), mx::vector(2.0f, 0.0f), mx::vector(1.0f, 2.0f))))));
 
     EXPECT_THAT(
-        dcel.halfedges() | to_vector<halfedge_proxy::type>{},
+        dcel.halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}),
         testing::ElementsAre(
             testing::AllOf(
                 halfedge_proxy::id(testing::Eq(0)),
@@ -166,5 +144,5 @@ TEST(dcel, single_face)
                 halfedge_proxy::vertex_from(vertex_proxy::id(testing::Eq(0))),
                 halfedge_proxy::vertex_to(vertex_proxy::id(testing::Eq(2))))));
 
-    EXPECT_THROW(dcel.outer_halfedges() | to_vector<halfedge_proxy::type>{}, std::runtime_error);
+    EXPECT_THROW(dcel.outer_halfedges() |= trx::into(std::vector<halfedge_proxy::type>{}), std::runtime_error);
 }
