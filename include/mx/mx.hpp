@@ -258,6 +258,9 @@ struct function_ref<Ret(Args...)>
     void* m_obj;
     func_type m_func;
 
+    constexpr function_ref() = delete;
+    constexpr function_ref(const function_ref&) = default;
+
     template <class Func>
     constexpr function_ref(Func&& func)
         : m_obj{ const_cast<void*>(reinterpret_cast<const void*>(std::addressof(func))) }
@@ -266,27 +269,19 @@ struct function_ref<Ret(Args...)>
     {
     }
 
-    template <class... CallArgs>
-    constexpr return_type operator()(CallArgs&&... args) const
+    constexpr return_type operator()(Args... args) const
     {
-        return m_func(m_obj, std::forward<CallArgs>(args)...);
+        return m_func(m_obj, std::forward<Args>(args)...);
     }
 };
 
 template <class... Args>
-struct generator : public std::function<void(function_ref<void(Args...)>)>
+struct generator_t : public std::function<void(function_ref<bool(Args...)>)>
 {
-    using consumer_type = function_ref<void(Args...)>;
-    using base_t = std::function<void(function_ref<void(Args...)>)>;
+    using yield_fn = function_ref<bool(Args...)>;
+    using base_t = std::function<void(function_ref<bool(Args...)>)>;
 
     using base_t::base_t;
-
-    template <class Func>
-    constexpr Func for_each(Func func) const
-    {
-        (*this)(consumer_type{ func });
-        return func;
-    }
 };
 
 template <class Iter>

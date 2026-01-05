@@ -74,9 +74,9 @@ public:
             return m_self->get_location(id);
         }
 
-        generator<const halfedge_proxy&> outer_halfedges() const
+        generator_t<const halfedge_proxy&> outer_halfedges() const
         {
-            return [&](function_ref<void(const halfedge_proxy&)> func)
+            return [&](auto yield)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -84,18 +84,21 @@ public:
                 {
                     auto current = next;
                     next = next.twin_halfedge().next_halfedge();
-                    func(current);
+                    if (!yield(current))
+                    {
+                        return;
+                    }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
         }
 
-        generator<const halfedge_proxy&> in_halfedges() const
+        generator_t<const halfedge_proxy&> in_halfedges() const
         {
-            return [&](function_ref<void(const halfedge_proxy&)> func)
+            return [&](auto yield)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -103,18 +106,21 @@ public:
                 {
                     auto current = next;
                     next = next.twin_halfedge().next_halfedge();
-                    func(current.twin_halfedge());
+                    if (!yield(current.twin_halfedge()))
+                    {
+                        return;
+                    }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
         }
 
-        generator<const face_proxy&> incident_faces() const
+        generator_t<const face_proxy&> incident_faces() const
         {
-            return [&](function_ref<void(const face_proxy&)> func)
+            return [&](auto yield)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -124,11 +130,14 @@ public:
                     next = next.twin_halfedge().next_halfedge();
                     if (auto f = next.incident_face())
                     {
-                        func(*f);
+                        if (!yield(*f))
+                        {
+                            return;
+                        }
                     }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
@@ -150,9 +159,9 @@ public:
         const dcel* m_self;
         dcel_face_id id;
 
-        generator<const halfedge_proxy&> outer_halfedges() const
+        generator_t<const halfedge_proxy&> outer_halfedges() const
         {
-            return [&](function_ref<void(const halfedge_proxy&)> func)
+            return [&](auto yield)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -160,18 +169,21 @@ public:
                 {
                     auto current = next;
                     next = next.next_halfedge();
-                    func(current);
+                    if (!yield(current))
+                    {
+                        return;
+                    }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
         }
 
-        generator<const vertex_proxy&> outer_vertices() const
+        generator_t<const vertex_proxy&> outer_vertices() const
         {
-            return [&](function_ref<void(const vertex_proxy&)> func)
+            return [&](auto yield)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -179,18 +191,21 @@ public:
                 {
                     auto current = next;
                     next = next.next_halfedge();
-                    func(current.vertex_from());
+                    if (!yield(current.vertex_from()))
+                    {
+                        return;
+                    }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
         }
 
-        generator<const face_proxy&> adjacent_faces() const
+        generator_t<const face_proxy&> adjacent_faces() const
         {
-            return [&](function_ref<void(const face_proxy&)> func)
+            return [&](auto func)
             {
                 auto next = halfedge_proxy{ m_self, info().halfedge };
                 const auto first_id = next.id;
@@ -200,11 +215,14 @@ public:
                     next = next.next.next_halfedge();
                     if (auto f = next->twin_halfedge().incident_face())
                     {
-                        func(*f);
+                        if (!yield(*f))
+                        {
+                            return;
+                        }
                     }
                     if (next.id == first_id)
                     {
-                        break;
+                        return;
                     }
                 }
             };
@@ -213,7 +231,12 @@ public:
         polygon_type as_polygon() const
         {
             polygon_type out;
-            outer_vertices().for_each([&](const vertex_proxy& v) { out.push_back(v.location()); });
+            outer_vertices()(
+                [&out](const vertex_proxy& v)
+                {
+                    out.push_back(v.location());
+                    return true;
+                });
             return out;
         }
 
@@ -319,42 +342,51 @@ public:
         m_boundary_halfedge = build_face(hull(), nullptr);
     }
 
-    generator<const vertex_proxy&> vertices() const
+    generator_t<const vertex_proxy&> vertices() const
     {
-        return [&](function_ref<void(const vertex_proxy&)> func)
+        return [&](auto yield)
         {
             for (const vertex_info& v : m_vertices)
             {
-                func(vertex_proxy{ this, v.id });
+                if (!yield(vertex_proxy{ this, v.id }))
+                {
+                    return;
+                }
             }
         };
     }
 
-    generator<const face_proxy&> faces() const
+    generator_t<const face_proxy&> faces() const
     {
-        return [&](function_ref<void(const face_proxy&)> func)
+        return [&](auto yield)
         {
             for (const face_info& f : m_faces)
             {
-                func(face_proxy{ this, f.id });
+                if (!yield(face_proxy{ this, f.id }))
+                {
+                    return;
+                }
             }
         };
     }
 
-    generator<const halfedge_proxy&> halfedges() const
+    generator_t<const halfedge_proxy&> halfedges() const
     {
-        return [&](function_ref<void(const halfedge_proxy&)> func)
+        return [&](auto yield)
         {
             for (const halfedge_info& h : m_halfedges)
             {
-                func(halfedge_proxy{ this, h.id });
+                if (!yield(halfedge_proxy{ this, h.id }))
+                {
+                    return;
+                }
             }
         };
     }
 
-    generator<const halfedge_proxy&> outer_halfedges() const
+    generator_t<const halfedge_proxy&> outer_halfedges() const
     {
-        return [&](function_ref<void(const halfedge_proxy&)> func)
+        return [&](auto yield)
         {
             if (m_boundary_halfedge == dcel_halfedge_id{ -1 })
             {
@@ -365,7 +397,10 @@ public:
             while (true)
             {
                 auto current = next;
-                func(current);
+                if (!yield(current))
+                {
+                    return;
+                }
                 next = next.next_halfedge();
                 if (next.id == first_id)
                 {
