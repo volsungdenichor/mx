@@ -576,6 +576,7 @@ private:
                 {
                     outer_halfedges.emplace(h.vertex_from().id, h.vertex_to().id);
                 }
+                return true;
             });
 
         if (outer_halfedges.empty())
@@ -605,8 +606,12 @@ struct voronoi_fn
             [&]() -> std::vector<dcel_vertex_id>
             {
                 std::vector<dcel_vertex_id> res;
-                input.outer_halfedges()([&](const typename dcel<T>::halfedge_proxy& halfedge)
-                                        { res.push_back(halfedge.vertex_from().id); });
+                input.outer_halfedges()(
+                    [&](const typename dcel<T>::halfedge_proxy& halfedge)
+                    {
+                        res.push_back(halfedge.vertex_from().id);
+                        return true;
+                    });
 
                 return res;
             });
@@ -621,7 +626,10 @@ struct voronoi_fn
             bool result = false;
             face.outer_halfedges()(
                 [&](const typename dcel<T>::halfedge_proxy& halfedge)
-                { result |= (is_outer_vertex(halfedge.vertex_from()) && is_outer_vertex(halfedge.vertex_to())); });
+                {
+                    result |= (is_outer_vertex(halfedge.vertex_from()) && is_outer_vertex(halfedge.vertex_to()));
+                    return true;
+                });
             return result;
         };
 
@@ -644,6 +652,7 @@ struct voronoi_fn
                         centers[face.id] = v;
                     }
                     vertices.push_back(v);
+                    return true;
                 });
 
             if (vertices.size() >= 3)
@@ -660,6 +669,7 @@ struct voronoi_fn
                 {
                     add_face(vertex);
                 }
+                return true;
             });
 
         result.add_boundary();
