@@ -276,13 +276,10 @@ struct function_ref<Ret(Args...)>
 };
 
 template <class... Args>
-struct generator_t : public std::function<void(function_ref<bool(Args...)>)>
-{
-    using yield_fn = function_ref<bool(Args...)>;
-    using base_t = std::function<void(function_ref<bool(Args...)>)>;
+using yield_fn = function_ref<bool(Args...)>;
 
-    using base_t::base_t;
-};
+template <class... Args>
+using generator_t = std::function<void(yield_fn<Args...>)>;
 
 template <class Iter>
 struct iterator_range

@@ -6,7 +6,7 @@
 template <class... Args, class State, class Reducer>
 constexpr auto operator|=(mx::generator_t<Args...> generator, trx::reducer_proxy_t<State, Reducer> proxy) -> State
 {
-    generator(typename mx::generator_t<Args...>::yield_fn{ proxy });
+    generator(proxy);
     return proxy.state;
 }
 
