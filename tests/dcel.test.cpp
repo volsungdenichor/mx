@@ -4,10 +4,10 @@
 #include <trx/trx.hpp>
 
 template <class... Args, class State, class Reducer>
-constexpr auto operator|=(mx::generator_t<Args...> generator, trx::reducer_proxy_t<State, Reducer> proxy) -> State
+constexpr auto operator|=(mx::generator_t<Args...> generator, trx::reductor_t<State, Reducer> reductor) -> State
 {
-    generator(proxy);
-    return proxy.state;
+    generator(reductor);
+    return reductor.state;
 }
 
 struct vertex_proxy
