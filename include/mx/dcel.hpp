@@ -74,7 +74,7 @@ public:
             return m_self->get_location(id);
         }
 
-        generator_t<const halfedge_proxy&> outer_halfedges() const
+        generator_t<halfedge_proxy> outer_halfedges() const
         {
             return [&](auto yield)
             {
@@ -96,7 +96,7 @@ public:
             };
         }
 
-        generator_t<const halfedge_proxy&> in_halfedges() const
+        generator_t<halfedge_proxy> in_halfedges() const
         {
             return [&](auto yield)
             {
@@ -118,7 +118,7 @@ public:
             };
         }
 
-        generator_t<const face_proxy&> incident_faces() const
+        generator_t<face_proxy> incident_faces() const
         {
             return [&](auto yield)
             {
@@ -159,7 +159,7 @@ public:
         const dcel* m_self;
         dcel_face_id id;
 
-        generator_t<const halfedge_proxy&> outer_halfedges() const
+        generator_t<halfedge_proxy> outer_halfedges() const
         {
             return [&](auto yield)
             {
@@ -181,7 +181,7 @@ public:
             };
         }
 
-        generator_t<const vertex_proxy&> outer_vertices() const
+        generator_t<vertex_proxy> outer_vertices() const
         {
             return [&](auto yield)
             {
@@ -203,7 +203,7 @@ public:
             };
         }
 
-        generator_t<const face_proxy&> adjacent_faces() const
+        generator_t<face_proxy> adjacent_faces() const
         {
             return [&](auto func)
             {
@@ -342,7 +342,7 @@ public:
         m_boundary_halfedge = build_face(hull(), nullptr);
     }
 
-    generator_t<const vertex_proxy&> vertices() const
+    generator_t<vertex_proxy> vertices() const
     {
         return [&](auto yield)
         {
@@ -356,7 +356,7 @@ public:
         };
     }
 
-    generator_t<const face_proxy&> faces() const
+    generator_t<face_proxy> faces() const
     {
         return [&](auto yield)
         {
@@ -370,7 +370,7 @@ public:
         };
     }
 
-    generator_t<const halfedge_proxy&> halfedges() const
+    generator_t<halfedge_proxy> halfedges() const
     {
         return [&](auto yield)
         {
@@ -384,7 +384,7 @@ public:
         };
     }
 
-    generator_t<const halfedge_proxy&> outer_halfedges() const
+    generator_t<halfedge_proxy> outer_halfedges() const
     {
         return [&](auto yield)
         {
