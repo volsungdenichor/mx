@@ -3,13 +3,6 @@
 #include <mx/dcel.hpp>
 #include <trx/trx.hpp>
 
-template <class... Args, class State, class Reducer>
-constexpr auto operator|=(mx::generator_t<Args...> generator, trx::reductor_t<State, Reducer> reductor) -> State
-{
-    generator(reductor);
-    return reductor.state;
-}
-
 struct vertex_proxy
 {
     using type = mx::dcel<float>::vertex_proxy;
