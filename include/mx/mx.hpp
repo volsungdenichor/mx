@@ -2001,7 +2001,7 @@ struct contains_fn
     {
         constexpr auto same_sign = [](int a, int b) { return (a <= 0 && b <= 0) || (a >= 0 && b >= 0); };
 
-        int result[3];
+        int result[3] = { 0, 0, 0 };
 
         for (std::size_t i = 0; i < 3; ++i)
         {
